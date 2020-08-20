@@ -3,7 +3,7 @@
 I'll give the basic summary of each question from the assignment given to me, then I'll answer each question
 
 ### Question 1: Design a database application to support a survey
-![databaseDiagram] (databaseStructure.png)
+![databaseDiagram] (/images/databaseStructure.png)
 
 ### Question 2: One week from the deadline the customer asked for a new feature: they want to make the survey an annual event. How do you facilitate that?
 If you designed your database correctly then you shouldn't need to make any changes. Customer requests should come with 4 things kept in mind:
