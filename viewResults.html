@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <!-- Ractive -->
+        <script src="https://cdn.jsdelivr.net/npm/ractive"></script>
+    
+        <!-- Bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    
+        <!-- Bootbox (for modal dialogs)-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/5.4.0/bootbox.min.js"></script>
+    </head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="./index.html"><img src="husker_n.png" width="50" height="50"></a>
+            </li>
+            <li class="nav-item" active>
+                <a class="nav-link" href="./questions.html">Questions</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="./employees.html">Employees</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="./scheduleSurvey.html">New Survey</a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="#">View Results</a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- The target and template are where the Ractive templates apply -->
+    <div id="target"></div>
+
+    <script id="template" type="text/ractive">
+
+        <div class="container">
+        <h2>Survey Results</h2>
+        <div class="form-group">
+        <div>
+            <label for='selectSurvey'>Survey</label>
+            <select id='selectSurvey' class='form-control' onchange='getSurveyInfo()'>
+                <option value=''>Select a survey</option>
+                {{#each surveyList }}
+                    <option value="{{surveyid}}">{{surveyName}}</option>
+                {{/each}}
+            </select>
+        </div>
+
+        <div>
+            <p></p>
+            <input type="checkbox" id="checkboxShowOnlyUncompleted" onclick='setDisplayResults()'>
+            <label for="checkboxShowOnlyUncompleted">Show Only Uncompleted</label>
+        </div>
+
+        <div>
+            {{>resultTable}}
+        </div>
+
+        </div>
+        </div>
+
+        <!-- Result Table-->
+        {{#partial resultTable}}
+            <table class="table">
+                <tr class="thead-dark">
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Score</th>
+                    <th>Completed</th>
+                </tr>
+                {{#each displayedResults}}
+                <tr>
+                    <td>{{firstname}}</td>
+                    <td>{{lastname}}</td>
+                    <td>{{score}}</td>
+                    <td>{{#if iscompleted == 1}} Yes {{else}} No {{/if}}</td>
+                </tr>
+                {{/each}}
+            </table>
+        {{/partial}}
+
+    </script>
+
+    <script>
+    
+    //===============================================================================
+    //Retrieving the list of surveys - automatically happens when page loads
+    //===============================================================================
+    fetchInfo("./getInfo.php?info=surveyList", 'surveyList');
+
+    //-------------------------------------------------------------------------------
+    //Grab info from the serer
+    //-------------------------------------------------------------------------------
+    function fetchInfo(url, elementToAlter) {
+        fetch(url)
+            .then(
+                function (response) {
+                    if (response.status !== 200) {
+                        console.log('Error: ' +
+                            response.status);
+                        return;
+                    }
+                    response.json().then(function (data) {
+                        console.log(data)
+                        ractive.set(elementToAlter, data)
+                    });
+                }
+            )
+            .catch(function (err) {
+                console.log('Fetch Error :-S', err);
+        });
+    }
+
+    //-------------------------------------------------------------------------------
+    //Special fetch call that updates both the total result list, and the results that are displayed
+    //-------------------------------------------------------------------------------
+    function getSurveyInfo(){
+        const surveyid = document.getElementById('selectSurvey').value        
+        fetch("./getInfo.php?info=surveyResults&surveyid=" + surveyid)
+            .then(
+                function (response) {
+                    if (response.status !== 200) {
+                        console.log('Error: ' +
+                            response.status);
+                        return;
+                    }
+
+                    response.json().then(function (data) {
+                        console.log("Survey Results: ",data)
+                        ractive.set('resultList', data)
+                        ractive.set('displayedResults', data)
+                    });
+                }
+            )
+            .catch(function (err) {
+                console.log('Fetch Error :-S', err);
+            });
+    }
+
+    //-------------------------------------------------------------------------------
+    //If the box is unchecked show all results, if the box is checked only show uncompleted results
+    //-------------------------------------------------------------------------------
+    function setDisplayResults(){
+        const totalResultSet = ractive.get('resultList')
+
+        let uncompletedResultSet = []
+
+        if(document.getElementById('checkboxShowOnlyUncompleted').checked == true){
+            for(i in totalResultSet){
+                if(totalResultSet[i].iscompleted == 0){
+                    uncompletedResultSet.push(totalResultSet[i])
+                }
+            }
+            ractive.set('displayedResults', uncompletedResultSet)
+        }
+        else{
+            ractive.set('displayedResults', totalResultSet)
+        }
+
+    }
+
+    /*==========================================
+    Ractive Section
+    ==========================================*/
+
+    const ractive = new Ractive({
+        target: 'target',
+        template: '#template',
+
+        data: {
+            surveyList: [],
+            resultList: [],
+            displayedResults: []
+        }
+    });
+
+    </script>
+
+</body>
+
+</html>

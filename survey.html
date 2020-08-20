@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Ractive -->
+    <script src="https://cdn.jsdelivr.net/npm/ractive"></script>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+    <!-- Bootbox (for modal dialogs)-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/5.4.0/bootbox.min.js"></script>
+
+</head>
+
+<body>
+
+    <!-- The target and template are where the Ractive templates apply -->
+    <div id="target"></div>
+
+    <script
+        id="template"
+        type="text/ractive">
+
+        <div class="container">
+        <div class="form-group">
+
+        <p></p>
+        <div class='alert alert-warning'>
+            <h4>Note:</h4> 
+            This survey is not anonymous, your answers are being used to track
+            employee satisfaction over time to ensure that our employee satisfaction programs are succeeding.
+        </div>
+        <p></p>
+
+            <div>
+                <form>
+
+                <div>
+                    {{>questionSection}}
+                </div> 
+
+                <div>
+                    <label for='textareaComments'>Comments</label>
+                </div>
+                <div>
+                    <textarea id='textareaComments' onfocusout='setCommentText()' class='form-control'></textarea>
+                </div>
+
+                <p></p>
+                <input type='button' id='submitNewQuestion' value='Submit' class='btn btn-primary form-control' onclick = 'checkForRequiredInputsThenSubmit()'>
+
+            </form>
+            </div>
+            </div>
+        </div> 
+
+        <!-- Template for Question Section-->
+        {{#partial questionSection}}
+        {{#each question: i}}
+
+        <p>
+        <strong> {{questionText}} </strong>
+        <br>
+
+        <input type="radio" id="radio1" value=1 name="radio{{i}}" onclick='setAnswer({{i}},1)'>
+        <label for="radio1">1 (Strongly Disagree)</label>
+
+        <br>
+
+        <input type="radio" id="radio2" value=2 name="radio{{i}}" onclick='setAnswer({{i}},2)'>
+        <label for="radio2">2 (Moderately Disagree)</label>
+
+        <br>
+
+        <input type="radio" id="radio3" value=3 name="radio{{i}}" onclick='setAnswer({{i}},3)'>
+        <label for="radio3">3 (Undecided)</label>
+
+        <br>
+
+        <input type="radio" id="radio4" value=4 name="radio{{i}}" onclick='setAnswer({{i}},4)'>
+        <label for="radio4">4 (Moderately Agree)</label>
+
+        <br>
+
+        <input type="radio" id="radio5" value=5 name="radio{{i}}" onclick='setAnswer({{i}},5)'>
+        <label for="radio5">5 (Strongly Agree)</label>
+
+    {{/each}}
+    {{/partial}}
+
+    </script>
+
+    <script>
+
+        //===============================================================================
+        //Grab info out of the URL so that you can send it to the server and get back the appropriate question list
+        //===============================================================================
+        const url_string = window.location.href
+        const url = new URL(url_string)
+        const employeeid = url.searchParams.get("employeeid")
+        const surveyid = url.searchParams.get("surveyid")
+        const accessCode = url.searchParams.get("accesscode")
+
+        function setCommentText(){
+            ractive.set('comment',document.getElementById('textareaComments').value)
+        }
+        
+        //===============================================================================
+        //Retrieving the list of questions from the server
+        //===============================================================================
+        fetch("./getInfo.php?info=questionList&employeeid=" + employeeid + "&surveyid=" + surveyid)
+            .then(
+                function (response) {
+                    if (response.status !== 200) {
+                        console.log('Error: ' +
+                            response.status);
+                        return;
+                    }
+
+                    response.json().then(function (data) {
+                        console.log(data)
+                        ractive.set('question', data)
+                    });
+                }
+            )
+            .catch(function (err) {
+                console.log('Fetch Error :-S', err);
+        });
+
+        //-------------------------------------------------------------------------------
+        //Check if all required fields have been filled out
+        //-------------------------------------------------------------------------------
+        function checkForRequiredInputsThenSubmit(){
+            const totalQuestionList = ractive.get('question')
+            const totalAnswerList = ractive.get('answerList')
+
+            let requiredQuestionList = []
+            let filledOutAnswerList = []
+
+            for(i in totalQuestionList){
+                if(totalQuestionList[i].required == 1){
+                    requiredQuestionList.push({questionid: totalQuestionList[i].questionid})
+                }
+            }
+
+            for(i in totalAnswerList){
+                if(totalAnswerList[i].answer){
+                    filledOutAnswerList.push({questionid: totalAnswerList[i].questionid})
+                }
+            }
+
+            //Comparing objects is tough, so to make it easier we'll turn them into strings, then compare
+            if(JSON.stringify(filledOutAnswerList) === JSON.stringify(requiredQuestionList)){
+                console.log("All required fields are filled out!")
+                submitSurveyAnswers(totalAnswerList)
+            }
+            else{
+                console.log("Please fill out all required fields.")
+            }
+        }
+
+        //-------------------------------------------------------------------------------
+        //Grab the data from the elements and assign it to the answerList
+        //-------------------------------------------------------------------------------
+        function setAnswer(listid, numberSelection){
+            
+            let currentAnswerList = ractive.get('answerList');
+            let currentQuestionList = ractive.get('question');
+            currentAnswerList[listid] = {questionid: currentQuestionList[listid].questionid, answer: numberSelection}
+
+            ractive.set('answerList',currentAnswerList)
+            console.log("Survey Answers: ", ractive.get('answerList'))
+        }
+
+        //-------------------------------------------------------------------------------
+        // Submit Survey Answers
+        //-------------------------------------------------------------------------------
+        function submitSurveyAnswers(listid){
+
+            fetch("./getInfo.php?info=surveyValidation" + "&employeeid=" + employeeid + "&surveyid=" + surveyid + "&accessCode=" + accessCode)
+                .then(
+                    function (response) {
+                        if (response.status !== 200) {
+                            console.log('Error: ' +
+                                response.status);
+                            return
+                        }
+                        //Check for survey validation
+                        response.json().then(function (validationData) {
+                            if(validationData[0].isCompleted == 0){
+                                console.log("Validated!")
+                                //Send the answers to the server
+                                const answerPayload = {infoType: 'surveySubmission', employeeid: employeeid, answerList: ractive.get('answerList')}
+                                submitInfo(answerPayload)
+                                //Send the comments to the server
+                                const commentPayload = {infoType: 'commentSubmission', employeeid: employeeid, surveyid: surveyid, commentText: ractive.get('comment')}
+                                submitInfo(commentPayload)
+                                //Mark the employee's survey as completed so that it can not be submitted again
+                                const completeEmployeeSurvey = {infoType: 'completeEmployeeSurvey', employeeid: employeeid, surveyid: surveyid};
+                                submitInfo(completeEmployeeSurvey);
+
+                                bootbox.alert("Thank you for completing the survey!")
+                                document.body.innerHTML = '';
+                            }
+                            else{
+                                console.log("Not validated")
+                            }
+                        })
+                    }
+                )
+                .catch(function (err) {
+                    console.log('Fetch Error :-S', err);
+            });
+        }
+        
+        //-------------------------------------------------------------------------------
+        //Send info to the server
+        //-------------------------------------------------------------------------------
+        function submitInfo(data){
+
+            fetch('./saveInfo.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result)
+            })
+        }        
+
+        /*==========================================
+        Ractive Section
+        ==========================================*/
+
+        const ractive = new Ractive({
+            target: 'target',
+            template: '#template',
+
+            data: {
+                question: [],
+                comment: {},
+                answerList: []
+            },
+        });
+
+    </script>
+
+    <!--
+    Not the victory but the action
+    Not the goal but the game
+    In the deed the glory
+    -->
+
+</body>
+
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <!-- Ractive -->
+        <script src="https://cdn.jsdelivr.net/npm/ractive"></script>
+    
+        <!-- Bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    
+        <!-- Bootbox (for modal dialogs)-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/5.4.0/bootbox.min.js"></script>
+    </head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="./index.html"><img src="husker_n.png" width="50" height="50"></a>
+            </li>
+            <li class="nav-item active" active>
+                <a class="nav-link" href="#">Questions</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="./employees.html">Employees</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="./scheduleSurvey.html">New Survey</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="./viewResults.html">View Results</a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- The target and template are where the Ractive templates apply -->
+    <div id="target"></div>
+
+    <script id="template" type="text/ractive">
+        <div class="container">
+        <div class="form-group">
+
+        <div>
+            <label for='selectSurvey'>Survey</label>
+            <select id='selectSurvey' class='form-control' onchange='getDepartmentQuestions()'>
+                <option value='0' selected='selected'>Select a Survey</option>
+                {{#each surveyList }}
+                    <option value="{{surveyid}}">{{surveyName}}</option>
+                {{/each}}
+            </select>
+        </div>
+
+        <div>
+            <label for='selectDepartment'>Department</label>
+            <select id='selectDepartment' class='form-control' onchange='getDepartmentQuestions()'>
+                {{#each departmentList }}
+                    <option value="{{departmentid}}">{{departmentName}}</option>
+                {{/each}}
+            </select>
+        </div>
+
+        <div>
+            <p></p>
+            <h3>New Question</h3>
+            {{>addQuestionSection}}
+        </div> 
+            
+        <div>
+            <p></p>
+            <h3>Existing Questions</h3>
+            {{#each displayedQuestions: i}}
+                {{>displayedQuestionsSection}}
+            {{/each}}
+        </div>
+
+        </div>
+        </div>
+
+        <!-- Template for "Add Question"-->
+        {{#partial addQuestionSection}}
+        <form>
+        
+        <div hidden>
+            <label for='selectQuestionType'>Question Type</label>
+            <select id='selectQuestionType' class='form-control'>
+                {{#each questionTypeList }}
+                    <option value="{{questionTypeid}}">{{questionTypeName}}</option>
+                {{/each}}
+            </select>
+        </div>
+
+        <div>
+            <label for='textareaQuestionTextValue'>Question Text</label>
+            <textarea id='textareaQuestionTextValue' class='form-control'></textarea>
+        </div>
+
+        <div>
+            <input type='checkbox' id='checkboxRequiredQuestion' checked value="1"> Required Question
+        </div>
+
+        <input type='button' id='submitNewQuestion' value='Submit' onclick='createNewQuestion()' class='btn btn-primary' {{#if selectedSurvey==0}}disabled{{/if}}>
+        <input type='button' id='cancelNewQuestion' value = 'Cancel' onclick='clearInputFields()' class='btn btn-info'>
+
+        </form>
+        {{/partial}}
+
+        <!-- Displayed Questions Template-->
+        {{#partial displayedQuestionsSection}}
+            <p></P>
+            <div><input type='text' value='{{questionText}}' class='form-control' disabled></div>
+            <div><input type='button' id='deleteExistingQuestion' value='Delete Question' onclick='deleteQuestion({{i}})' class='btn btn-danger'></div>
+        {{/partial}}
+
+    </script>
+
+    <script>
+
+    //===============================================================================
+    //Retrieving the list of surveys - automatically happens when page loads
+    //===============================================================================
+    fetchInfo("./getInfo.php?info=surveyList", 'surveyList');
+
+    //===============================================================================
+    //Retrieving the list of departments - automatically happens when page loads
+    //===============================================================================
+    fetchInfo("./getInfo.php?info=departmentList", 'departmentList');
+
+    //-------------------------------------------------------------------------------
+    //Delete a question
+    //-------------------------------------------------------------------------------
+    function deleteQuestion(listid){
+        const data = { 
+            infoType: 'deleteQuestion',
+            questionid: ractive.get('displayedQuestions[' + listid + '].questionid')
+        };
+        submitInfo(data)
+    }
+
+    //-------------------------------------------------------------------------------
+    //Create a new question
+    //-------------------------------------------------------------------------------
+    function createNewQuestion(){
+        //If the Required checkbox is checked then return 1, otherwise return 0
+        const checkboxInfo = document.getElementById('checkboxRequiredQuestion').checked ? 1 : 0
+
+        const data = { 
+        infoType: 'saveNewQuestion',    
+        surveyid: document.getElementById('selectSurvey').value,
+        departmentid: document.getElementById('selectDepartment').value,
+        questionTypeid: document.getElementById('selectQuestionType').value,
+        questionText: document.getElementById('textareaQuestionTextValue').value,
+        requiredQuestion: checkboxInfo
+        };
+        submitInfo(data)
+    }
+
+    //-------------------------------------------------------------------------------
+    //Clear the page's input fields
+    //-------------------------------------------------------------------------------
+    function clearInputFields(){
+            document.getElementById('selectSurvey').value = '0'
+            document.getElementById('selectDepartment').value = '1'
+            document.getElementById('textareaQuestionTextValue').value = ''
+            document.getElementById('checkboxRequiredQuestion').value = 'on'
+    }
+
+    //-------------------------------------------------------------------------------
+    //Send info to the server
+    //-------------------------------------------------------------------------------
+    function submitInfo(data){
+
+    fetch('./saveInfo.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log(result);
+            bootbox.alert(result)
+            //The flow of the screen worked better if only these two fields were cleared upon save
+            document.getElementById('textareaQuestionTextValue').value = ''
+            document.getElementById('checkboxRequiredQuestion').value = 'on'
+
+            getDepartmentQuestions()
+        })
+    }
+
+    //-------------------------------------------------------------------------------
+    //Special fetch that updates both the question list and the displayed question list
+    //-------------------------------------------------------------------------------
+    function fetchQuestionInfo(url, elementToAlter) {
+        fetch(url)
+            .then(
+                function (response) {
+                    if (response.status !== 200) {
+                        console.log('Error: ' +
+                            response.status);
+                        return;
+                    }
+
+                    response.json().then(function (data) {
+                        console.log(data)
+                        ractive.set('displayedQuestions', data)
+                    });
+                }
+            )
+            .catch(function (err) {
+                console.log('Fetch Error :-S', err);
+            });
+        }
+
+        //-------------------------------------------------------------------------------
+        //Get info from the server
+        //-------------------------------------------------------------------------------
+        function fetchInfo(url,elementToAlter) {
+            fetch(url)
+                .then(
+                function (response) {
+                    if (response.status !== 200) {
+                        console.log('Error: ' +
+                            response.status);
+                        return;
+                    }
+
+                    response.json().then(function (data) {
+                        console.log(data)
+                        ractive.set(elementToAlter, data)
+                        ractive.set(elementToAlter, data)
+                    });
+                }
+            )
+            .catch(function (err) {
+                console.log('Fetch Error :-S', err);
+            });
+        }
+
+        //-------------------------------------------------------------------------------
+        //Retrieving the list of questions that go with the selected survey
+        //Narrow down the questions to just show the department selected
+        //-------------------------------------------------------------------------------
+        function getDepartmentQuestions(){
+            ractive.set('selectedSurvey',document.getElementById('selectDepartment').value)
+            
+            fetchQuestionInfo("./getInfo.php?info=questionsBasedOnSurvey&surveyid=" + 
+            document.getElementById('selectSurvey').value + 
+            "&departmentid=" + document.getElementById('selectDepartment').value)
+        }
+
+        /*==========================================
+        Ractive Section
+        ==========================================*/
+
+        const ractive = new Ractive({
+            target: 'target',
+            template: '#template',
+
+            data: {
+                surveyList: [],
+                departmentList: [],
+                questionTypeList: [{ questionTypeid: 1, questionTypeName: "1to5" }],
+                displayedQuestions: [],
+                selectedSurvey: 0
+            },
+        });
+
+    </script>
+
+</body>
+
+</html>
