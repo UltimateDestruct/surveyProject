@@ -24,22 +24,54 @@
   /*Possible parameters passed to the server, only the relavent ones will be filled out per
   request, and all others will be ignored during the request*/
   $infoType = $data['infoType'];
-  $surveyTitle = $data['surveyTitle'];
-  $startDate = $data['startDate'];
+  	if(isset($data['surveyTitle'])){
+	  $surveyTitle = $data['surveyTitle'];
+	}
+	if(isset($data['startDate'])){
+  		$startDate = $data['startDate'];
+	}
+	if(isset($data['endDate'])){
   $endDate = $data['endDate'];
+	}
+	if(isset($data['firstName'])){
   $firstName = $data['firstName'];
+	}
+	if(isset($data['lastName'])){
   $lastName = $data['lastName'];
+	}
+	if(isset($data['departmentid'])){
   $departmentid = $data['departmentid'];
+	}
+	if(isset($data['questionText'])){
   $questionText = $data['questionText'];
+	}
+	if(isset($data['questionTypeid'])){
   $questionTypeid = $data['questionTypeid'];
+	}
+	if(isset($data['surveyid'])){
   $surveyid = $data['surveyid'];
+	}
+	if(isset($data['requiredQuestion'])){
   $requiredQuestion = $data['requiredQuestion'];
+	}
+	if(isset($data['questionid'])){
   $questionid = $data['questionid'];
+	}
+	if(isset($data['employeeid'])){
   $employeeid = $data['employeeid'];
+	}
+	if(isset($data['answerList'])){
   $answerList = $data['answerList'];
+	}
+	if(isset($data['accessCode'])){
   $accessCode = $data['accessCode'];
-  $commentText = $data['commentText'];
+	}
+	if(isset($data['emailAddress'])){
   $emailAddress = $data['emailAddress'];
+	}
+	if(isset($data['commentText'])){
+		$commentText = $data['commentText'];
+	}
 
   //Based on the POST input, choose which MySQL query to run
   switch ($infoType) {
@@ -84,11 +116,15 @@
           }
           $message = "Answers submitted!";
           break;
-        case 'commentSubmission':
-          $query = "INSERT INTO comment (surveyid, employeeid, commentText) VALUES(" . $surveyid . "," . $employeeid . ",'" . $commentText . "')";
-          $message = 'Comments submitted!';
-          break;
-        case 'completeEmployeeSurvey':
+		case 'commentSubmission':
+			//If the comment text is not set, set it to empty string
+			if(!$commentText){
+				$commentText = '';
+			}
+			$query = "INSERT INTO `comment` (surveyid, employeeid, commentText) VALUES(" . $surveyid . "," . $employeeid . ",'" . $commentText . "')";
+			$message = 'Comments submitted!';
+          	break;
+		case 'completeEmployeeSurvey':
           $query = "UPDATE employeeSurvey SET isCompleted = 1 WHERE employeeid = " . $employeeid . " AND surveyid = " . $surveyid;
           $message = "Employee survey marked as completed!";
           break;  
@@ -97,7 +133,7 @@
   //Run the query and send back a message
   
   if ($conn->query($query) === TRUE) {
-      echo json_encode($message);
+	  echo json_encode($message);
     } 
       else{
         echo json_encode("Query Error");
